@@ -78,107 +78,18 @@ async function handleGet(c: Context<{ Bindings: Env }>, tableName: string, id?: 
 }
 
 /**
- * Handles POST requests to create new records
- */
-async function handlePost(c: Context<{ Bindings: Env }>, tableName: string): Promise<Response> {
-    const table = sanitizeKeyword(tableName);
-    const data = await c.req.json();
-
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        return c.json({ error: 'Invalid data format' }, 400);
-    }
-
-    try {
-        const columns = Object.keys(data).map(sanitizeIdentifier);
-        const placeholders = columns.map(() => '?').join(', ');
-        const query = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
-        const params = columns.map(col => data[col]);
-
-        const result = await c.env.DB.prepare(query)
-            .bind(...params)
-            .run();
-
-        return c.json({ message: 'Resource created successfully', data }, 201);
-    } catch (error: any) {
-        return c.json({ error: error.message }, 500);
-    }
-}
-
-/**
- * Handles PUT/PATCH requests to update records
- */
-async function handleUpdate(c: Context<{ Bindings: Env }>, tableName: string, id: string): Promise<Response> {
-    const table = sanitizeKeyword(tableName);
-    const data = await c.req.json();
-
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        return c.json({ error: 'Invalid data format' }, 400);
-    }
-
-    try {
-        const setColumns = Object.keys(data)
-            .map(sanitizeIdentifier)
-            .map(col => `${col} = ?`)
-            .join(', ');
-
-        const query = `UPDATE ${table} SET ${setColumns} WHERE id = ?`;
-        const params = [...Object.values(data), id];
-
-        const result = await c.env.DB.prepare(query)
-            .bind(...params)
-            .run();
-
-        return c.json({ message: 'Resource updated successfully', data });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 500);
-    }
-}
-
-/**
- * Handles DELETE requests to remove records
- */
-async function handleDelete(c: Context<{ Bindings: Env }>, tableName: string, id: string): Promise<Response> {
-    const table = sanitizeKeyword(tableName);
-
-    try {
-        const query = `DELETE FROM ${table} WHERE id = ?`;
-        const result = await c.env.DB.prepare(query)
-            .bind(id)
-            .run();
-
-        return c.json({ message: 'Resource deleted successfully' });
-    } catch (error: any) {
-        return c.json({ error: error.message }, 500);
-    }
-}
-
-/**
- * Main REST handler that routes requests to appropriate handlers
+ * Main REST handler — GET only
  */
 export async function handleRest(c: Context<{ Bindings: Env }>): Promise<Response> {
     const url = new URL(c.req.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
-    
+
     if (pathParts.length < 2) {
         return c.json({ error: 'Invalid path. Expected format: /rest/{tableName}/{id?}' }, 400);
     }
 
     const tableName = pathParts[1];
     const id = pathParts[2];
-    
-    switch (c.req.method) {
-        case 'GET':
-            return handleGet(c, tableName, id);
-        case 'POST':
-            return handlePost(c, tableName);
-        case 'PUT':
-        case 'PATCH':
-            if (!id) return c.json({ error: 'ID is required for updates' }, 400);
-            return handleUpdate(c, tableName, id);
-        case 'DELETE':
-            if (!id) return c.json({ error: 'ID is required for deletion' }, 400);
-            return handleDelete(c, tableName, id);
-        default:
-            return c.json({ error: 'Method not allowed' }, 405);
-    }
+
+    return handleGet(c, tableName, id);
 } 

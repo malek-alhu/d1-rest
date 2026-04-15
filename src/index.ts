@@ -16,17 +16,6 @@ export interface Env {
 // # Get paginated results
 // GET /rest/users?limit=10&offset=20
 
-// # Create a new user
-// POST /rest/users
-// { "name": "John", "age": 30 }
-
-// # Update a user
-// PATCH /rest/users/123
-// { "age": 31 }
-
-// # Delete a user
-// DELETE /rest/users/123
-
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         const app = new Hono<{ Bindings: Env }>();
@@ -59,29 +48,8 @@ export default {
             return next();
         };
 
-        // CRUD REST endpoints made available to all of our tables
-        app.all('/rest/*', authMiddleware, handleRest);
-
-        // Execute a raw SQL statement with parameters with this route
-        app.post('/query', authMiddleware, async (c) => {
-            try {
-                const body = await c.req.json();
-                const { query, params } = body;
-
-                if (!query) {
-                    return c.json({ error: 'Query is required' }, 400);
-                }
-
-                // Execute the query against D1 database
-                const results = await env.DB.prepare(query)
-                    .bind(...(params || []))
-                    .all();
-
-                return c.json(results);
-            } catch (error: any) {
-                return c.json({ error: error.message }, 500);
-            }
-        });
+        // Read-only REST endpoints — GET only
+        app.get('/rest/*', authMiddleware, handleRest);
 
         return app.fetch(request, env, ctx);
     }
